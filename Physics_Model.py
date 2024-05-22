@@ -363,7 +363,7 @@ m.Equation(qgas == kp*(pgas-patm)*pgas/patm)
 #######Solve Henry's law problem first to find pout
 #Assume everything is at steady state
 
-Power_degas = m.Var(0,0) # create GEKKO variable
+P_degas = m.Var(0,0) # create GEKKO variable
 Sc4gas_degas = m.Var(0,0) #effluent concentration coming out
 pin_degas  = m.Var(0,0)
 pout_degas = m.Var(0,0)
@@ -375,7 +375,7 @@ T_degas = T #Temperature
 m.Equation(pin_degas == Sc4gas*R*T_degas/64 + Sco2gas*R*T_degas*(Shgas*R*T_degas/16))
 m.Equation(Sc4gas_degas == kp*(pout_degas-patm)*pout_degas/patm)
 m.Equation(Wc4gas_degas == Sc4gas_degas*Q) #molar flow of gas in (assume all gas in from influent)
-m.Equation(Power_degas == (kp*Wc4gas_degas*R*T_degas)/(kp-1)*((pout_degas/pin_degas)*(kp-1)/kp-1))
+m.Equation(P_degas == (kp*Wc4gas_degas*R*T_degas)/(kp-1)*((pout_degas/pin_degas)*(kp-1)/kp-1))
 #coming out of this equation we have power needed, concentration of effluent methane, molar flow of methane gas
 #one degree of freedom, minimized later through LCA
 
@@ -595,13 +595,14 @@ m.Equation(So_wet.dt() == So_weto + rho_wet.get('w2')*(1-Yh)+ rho_wet.get('w4')*
 m.Equation(Sf_wet.dt() == Sf_weto + rho_wet.get('w1')*(1-f_hyd_si)-rho_wet.get('w2')*(1/Yh)-rho_wet.get('w3')*(1/Yh)+rho_wet.get('w6')*f_bm_sf+rho_wet.get('w8')*f_bm_sf-rho_wet.get('w9')*(1/Yfb)+rho_wet.get('w10')*f_bm_sf+rho_wet.get('w12')*f_bm_sf+rho_wet.get('w14')*f_bm_sf+rho_wet.get('w17')*f_bm_sf)
 m.Equation(Sa_wet.dt() == Sa_weto - rho_wet.get('w4')/Yh- rho_wet.get('w5')/Yh+rho_wet.get('w9')*(1-Yfb)/Yfb- rho_wet.get('w11')/Yamb)- rho_wet.get('w13')/Yasrb
 m.Equation(SI_wet.dt() == SI_weto + f_hyd_si*rho_wet.get('w1'))
-m.Equation(Snh_wet.dt() == Snh_weto + rho_wet.get('w1')*nu_wet.get('n1')+ rho_wet.get('w2')*nu_wet.get('n2')+ rho_wet.get('w3')*nu_wet.get('n3')+ rho_wet.get('w4')*nu_wet.get('n4')+ rho_wet.get('w5')*nu_wet.get('n5')+rho_wet.get('w6')*nu_wet.get('n6')+ rho_wet.get('w7')*nu_wet.get('n7')+ rho_wet.get('w8')*nu_wet.get('n8')+ rho_wet.get('w9')*nu_wet.get('n9')+ rho_wet.get('w10')*nu_wet.get('n10')+ rho_wet.get('w11')*nu_wet.get('n11')+ rho_wet.get('w12')*nu_wet.get('n12')+ rho_wet.get('w13')*nu_wet.get('n13')+ rho_wet.get('w14')*nu_wet.get('n14')+ rho_wet.get('w15')*nu_wet.get('n15')+ rho_wet.get('w16')*nu_wet.get('n16')+ rho_wet.get('w17')*nu_wet.get('n17'))
+m.Equation(Snh_wet.dt() == Snh_weto + rho_wet.get('w1')*nu_wet.get('n1')+ rho_wet.get('w2')*nu_wet.get('n2')+ rho_wet.get('w3')*nu_wet.get('n3')+ rho_wet.get('w4')*nu_wet.get('n4')+ rho_wet.get('w5')*nu_wet.get('n5')+rho_wet.get('w6')*nu_wet.get('n6')+ rho_wet.get('w7')*nu_wet.get('n7')+ 
+    rho_wet.get('w8')*nu_wet.get('n8')+ rho_wet.get('w9')*nu_wet.get('n9')+ rho_wet.get('w10')*nu_wet.get('n10')+ rho_wet.get('w11')*nu_wet.get('n11')+ rho_wet.get('w12')*nu_wet.get('n12')+ rho_wet.get('w13')*nu_wet.get('n13')+ rho_wet.get('w14')*nu_wet.get('n14')+ rho_wet.get('w15')*nu_wet.get('n15')+ rho_wet.get('w16')*nu_wet.get('n16')+ rho_wet.get('w17')*nu_wet.get('n17'))
 m.Equation(Sno_wet.dt() == Sno_weto- rho_wet.get('w3')*(1-Yh)/(2.86*Yh)- rho_wet.get('w5')*(1-Yh)/(2.86*Yh)+rho_wet.get('w7')/Ya-rho_wet.get('w16')*(1-Ysob)/(0.875*Ysob))
 m.Equation(Sso4_wet.dt() == Sso4_weto-rho_wet.get('w13')*(1-Yasrb)/(2*Yasrb)+rho_wet.get('w15')/Ysob+rho_wet.get('w16')/Ysob)
 m.Equation(Sh2s_wet.dt() == Sh2s_weto-rho_wet.get('w13')*(1-Yasrb)/(2*Yasrb)+rho_wet.get('w15')/Ysob+rho_wet.get('w16')/Ysob)
 m.Equation(Xs_wet.dt() == Xs_weto -rho_wet.get('w1')+rho_wet.get('w6')*(1-f_bm_sf-f_bm_xi)+rho_wet.get('w8')*(1-f_bm_sf-f_bm_xi)+rho_wet.get('w10')*(1-f_bm_sf-f_bm_xi)+rho_wet.get('w12')*(1-f_bm_sf-f_bm_xi)+rho_wet.get('w14')*(1-f_bm_sf-f_bm_xi)+rho_wet.get('w17')*(1-f_bm_sf-f_bm_xi))
 m.Equation(XI_wet.dt() == XI_weto +rho_wet.get('w6')*f_bm_xi+rho_wet.get('w8')*f_bm_xi+rho_wet.get('w10')*f_bm_xi+rho_wet.get('w12')*f_bm_xi+rho_wet.get('w14')*f_bm_xi+rho_wet.get('w17')*f_bm_xi)
-m.Equation(Xh_wet.dt() == Xh_weto + rho_wet.get('w2')+ rho_wet.get('w2')+ rho_wet.get('3')+ rho_wet.get('w4')+ rho_wet.get('w5')-rho_wet.get('w6'))
+m.Equation(Xh_wet.dt() == Xh_weto + rho_wet.get('w2')+ rho_wet.get('w2')+ rho_wet.get('w3')+ rho_wet.get('w4')+ rho_wet.get('w5')-rho_wet.get('w6'))
 m.Equation(Xa_wet.dt() == Xa_weto + rho_wet.get('w7')-rho_wet.get('w8'))
 m.Equation(Xfb_wet.dt() == Xfb_weto +rho_wet.get('w9')-rho_wet.get('w10'))
 m.Equation(Xamb_wet.dt() == Xamb_weto+rho_wet.get('w11')-rho_wet.get('w12'))
@@ -621,5 +622,5 @@ m.options.MAX_ITER = 100  #Increase if not converging
                             
 m.solve(disp=True)     # solve
 
-m.Minimize(P_anmbr + P_degas + P_nitro + P_phos + P_cw)
+m.Minimize(P_anmbr + P_degas + P_nitro + P_phos + P_constructed)
 
