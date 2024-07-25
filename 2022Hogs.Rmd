@@ -1,0 +1,552 @@
+---
+title: "Hogs - 2022"
+author: "Madison Kratzer"
+date: "2024-05-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(sf)
+library(maps)
+library(rnaturalearth)
+library(viridis)
+library(circlize)
+library(ggplot2)
+library(usmap)
+
+```
+
+```{r readin}
+all_census_data <- read.delim(file.choose())
+```
+
+```{r pressure, echo=FALSE}
+animal_products <- filter(all_census_data,SECTOR_DESC == "ANIMALS & PRODUCTS")
+animal_products[animal_products == "(D)"] <- 0
+animal_products$VALUE <- as.numeric(gsub(",", "", animal_products$VALUE)) 
+#This is a cleaned data set where (D) value s are replaced with 0 and values for numbers that are strings are replaced by integer values
+```
+
+```{r swine, echo=FALSE}
+all_hog_data <- animal_products %>% filter(COMMODITY_DESC == "HOGS")
+hog_state_data <- all_hog_data %>% filter(AGG_LEVEL_DESC  == "STATE")
+hog_county_data <- all_hog_data %>% filter(AGG_LEVEL_DESC  == "COUNTY")
+hog_county_data
+```
+
+
+```{r state - inventory, echo=FALSE}
+
+hog_state_data_inventory <- hog_state_data %>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD") %>% filter(SHORT_DESC == "HOGS - INVENTORY")
+
+hog_state_data_inventory
+
+
+
+hog_state_data_sales<-hog_state_data %>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD") %>% filter(SHORT_DESC == "HOGS - SALES, MEASURED IN HEAD")
+hog_state_data_sales
+
+hog_state_data_inventory_trimmed<- data.frame("fips" =hog_state_data_inventory$STATE_FIPS_CODE,"values" = hog_state_data_inventory$VALUE,"name" = hog_state_data_inventory$STATE_NAME)
+
+hog_state_data_sales_trimmed<- data.frame("sales" = hog_state_data_sales$VALUE,"state" = hog_state_data_inventory$STATE_NAME)
+
+
+plot_usmap(data = hog_state_data_inventory_trimmed, values = "values")+
+  scale_fill_gradientn(colours = c('white', "green", 'green'),
+                       values = c(0, 10, 1))
+
+```
+```{r county - inventory, echo=FALSE}
+
+hog_county_data_inventory <- hog_county_data %>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD") %>% filter(SHORT_DESC == "HOGS - INVENTORY")
+hog_county_data_inventory 
+
+hog_county_data_inventory_trimmed<- data.frame("fips"= sprintf("%02d%03d", hog_county_data_inventory$STATE_FIPS_CODE, hog_county_data_inventory$COUNTY_CODE),values = hog_county_data_inventory$VALUE,'state' = hog_county_data_inventory$STATE_NAME)
+
+hog_county_data_inventory_trimmed
+
+
+plot_usmap(data = hog_county_data_inventory_trimmed, values = "values")+
+  scale_fill_gradientn(colours = c('white', "green", 'green'),
+                       values = c(0, 10, 1))
+```
+```{r state- ww value, echo=FALSE}
+finish_only <- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "FINISH ONLY")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+finish_only_trimmed<- data.frame("fips" = finish_only$STATE_FIPS_CODE,"state" = finish_only$STATE_NAME,"finish_only" = finish_only$VALUE)
+
+
+farrow_to_finish <- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "FARROW TO FINISH")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+farrow_to_finish_trimmed<- data.frame("fips" = farrow_to_finish$STATE_FIPS_CODE,"farrow_to_finish" = farrow_to_finish$VALUE)
+
+farrow_to_wean<- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "FARROW TO WEAN")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+farrow_to_wean_trimmed<- data.frame("fips" = farrow_to_wean$STATE_FIPS_CODE,"farrow_to_wean" = farrow_to_wean$VALUE)
+
+farrow_to_feeder<- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "FARROW TO FEEDER")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+farrow_to_feeder_trimmed<- data.frame("fips" = farrow_to_feeder$STATE_FIPS_CODE,"farrow_to_feeder" = farrow_to_feeder$VALUE)
+
+nursery<- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "NURSERY")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+nursery_trimmed<- data.frame("fips" = nursery$STATE_FIPS_CODE,"nursery" = nursery$VALUE)
+
+finishing_by_state <- merge(farrow_to_wean_trimmed,merge(farrow_to_feeder_trimmed,merge(nursery_trimmed,merge(finish_only_trimmed,farrow_to_finish_trimmed,by = 'fips'),by = 'fips'),by = 'fips'),by = 'fips')
+
+finishing_by_state_matrix <- finishing_by_state
+
+x = 1.62*7.48 # finish only
+y=1.24*7.48 # Farrow to feeder
+z=1.16*7.48 # farrow to wean
+a= 1.62*7.48 # nursery
+b = 1.49*7.48 # farrow to finish
+
+state_gallons_per_head <- data.frame(fips = finishing_by_state$fips,state = finishing_by_state$state,ratio = (finishing_by_state$finish_only*x+finishing_by_state$farrow_to_feeder*y+ finishing_by_state$farrow_to_wean*z+finishing_by_state$nursery*a + finishing_by_state$farrow_to_finish *b)/(finishing_by_state$finish_only+finishing_by_state$farrow_to_feeder+ finishing_by_state$farrow_to_wean+finishing_by_state$nursery + finishing_by_state$farrow_to_finish))
+
+x = 0.061 # finish only
+y=0.083 # Farrow to feeder
+z=0.110 # farrow to wean
+a= 0.042 # nursery  
+b = 0.091 # farrow to finish
+
+state_nitrogen <- data.frame(fips = finishing_by_state$fips,state = finishing_by_state$state,nitrogen = (finishing_by_state$finish_only*x+finishing_by_state$farrow_to_feeder*y+ finishing_by_state$farrow_to_wean*z+finishing_by_state$nursery*a + finishing_by_state$farrow_to_finish *b)/(finishing_by_state$finish_only+finishing_by_state$farrow_to_feeder+ finishing_by_state$farrow_to_wean+finishing_by_state$nursery + finishing_by_state$farrow_to_finish))
+
+
+x = 0.061 # finish only
+y=0.083 # Farrow to feeder
+z=0.110 # farrow to wean
+a= 0.042 # nursery  
+b = 0.091 # farrow to finish
+
+state_nitrogen <- data.frame(fips = finishing_by_state$fips,state = finishing_by_state$state,nitrogen = (finishing_by_state$finish_only*x+finishing_by_state$farrow_to_feeder*y+ finishing_by_state$farrow_to_wean*z+finishing_by_state$nursery*a + finishing_by_state$farrow_to_finish *b)/(finishing_by_state$finish_only+finishing_by_state$farrow_to_feeder+ finishing_by_state$farrow_to_wean+finishing_by_state$nursery + finishing_by_state$farrow_to_finish))
+
+
+x = 0.021 # finish only
+y=0.022 # Farrow to feeder
+z=0.037 # farrow to wean
+a= 0.0041 # nursery  
+b = 0.018 # farrow to finish
+
+state_phosphorus <- data.frame(fips = finishing_by_state$fips,state = finishing_by_state$state,phosphorus = (finishing_by_state$finish_only*x+finishing_by_state$farrow_to_feeder*y+ finishing_by_state$farrow_to_wean*z+finishing_by_state$nursery*a + finishing_by_state$farrow_to_finish *b)/(finishing_by_state$finish_only+finishing_by_state$farrow_to_feeder+ finishing_by_state$farrow_to_wean+finishing_by_state$nursery + finishing_by_state$farrow_to_finish))
+
+
+
+
+```
+
+
+```{r state- setup, echo=FALSE}
+finish_only <- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "FINISH ONLY")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+finish_only_trimmed<- data.frame("state" = finish_only$STATE_ALPHA,"value" = finish_only$VALUE,type = rep("finish_only",length(finish_only$STATE_NAME)))
+
+
+farrow_to_finish <- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "FARROW TO FINISH")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+farrow_to_finish_trimmed<- data.frame("state" = farrow_to_finish$STATE_ALPHA,"value" = farrow_to_finish$VALUE,type = rep("farrow_to_finish",length(farrow_to_finish$STATE_NAME)))
+
+farrow_to_wean<- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "FARROW TO WEAN")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+farrow_to_wean_trimmed<- data.frame("state" = farrow_to_wean$STATE_ALPHA,"value" = farrow_to_wean$VALUE,type = rep("farrow_to_wean",length(farrow_to_wean$STATE_NAME)))
+
+farrow_to_feeder<- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "FARROW TO FEEDER")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+farrow_to_feeder_trimmed<- data.frame("state" = farrow_to_feeder$STATE_ALPHA,"value" = farrow_to_feeder$VALUE,type = rep("farrow_to_feeder",length(farrow_to_feeder$STATE_NAME)))
+
+nursery<- hog_state_data %>% filter(PRODN_PRACTICE_DESC == "NURSERY")%>% filter(DOMAIN_DESC == "TOTAL") %>%  filter(UNIT_DESC == "HEAD")%>% filter(STATISTICCAT_DESC == "INVENTORY")
+
+nursery_trimmed<- data.frame("state" = nursery$STATE_ALPHA,"value" = nursery$VALUE,type = rep("nursery",length(nursery$STATE_NAME)))
+
+finishing_by_state <- rbind(nursery_trimmed,farrow_to_feeder_trimmed,farrow_to_wean_trimmed,farrow_to_finish_trimmed,finish_only_trimmed)
+
+finishing_by_state$type <- factor(finishing_by_state$type, levels =c( "finish_only","farrow_to_finish","farrow_to_wean","farrow_to_feeder","nursery"))
+
+
+ggplot(finishing_by_state, aes(x=state, y=value, fill=type)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("x", start=0)+ 
+  theme(axis.text = element_text(color = "black",size = 15),
+         axis.title.x = element_text(size = 13),
+        axis.title.y = element_text(size = 15),
+        legend.position = 'none')
+
+ggplot(finishing_by_state, aes(x=state, y=value, fill=type)) +
+   geom_col(position = "fill")+ 
+  theme(axis.text = element_text(color = "black",size = 13),
+         axis.title.x = element_text(size = 13),
+        axis.title.y = element_text(size = 15),
+        legend.position = 'none')
+
+
+short_finish <- finishing_by_state %>% filter(state %in% c('IA','MN','NC','IL','IN','NE','MO','OH','OK','SD'))
+
+short_finish$value = short_finish$value/1000000
+
+
+ggplot(data = short_finish, aes(x=state, y=value, fill=type)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("x", start=0)+theme(
+        axis.text = element_text(color = 'black'))
+
+ggplot(short_finish, aes(x=state, y=value, fill=type)) +
+   geom_col(position = "fill")+ 
+  theme(axis.text = element_text(color = "black",size = 15),
+         axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.text = element_text(size = 13),)
+
+
+
+ggplot(finishing_by_state, aes(x="", y=value, fill=state)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0)+theme(
+        axis.text = element_text(color = 'black'))
+
+
+
+```
+
+
+
+
+```{r state- setup, echo=FALSE}
+x <- data.frame("fips"= sprintf("%02d%03d", hog_county_data_inventory$STATE_FIPS_CODE, hog_county_data_inventory$COUNTY_CODE), "state" = hog_county_data_inventory$STATE_NAME)
+hog_county_data_with_state <- merge(hog_county_data_inventory_trimmed,unique(x),by = "fips")
+k = 0
+
+
+hog_county_data_with_state$wastewater = 0
+
+for(x in 1:nrow(state_gallons_per_head)){
+  for(y in 1:nrow(hog_county_data_with_state)){
+    if(state_gallons_per_head$state[x] == hog_county_data_with_state$state.x[y]){
+      hog_county_data_with_state$wastewater[y] = hog_county_data_with_state$values[y] * state_gallons_per_head$ratio[x]/1000000
+    }
+  }
+}
+
+
+hog_county_data_with_state$nitrogen = 0
+
+for(x in 1:nrow(state_nitrogen)){
+  for(y in 1:nrow(hog_county_data_with_state)){
+    if(state_nitrogen$state[x] == hog_county_data_with_state$state.x[y]){
+      hog_county_data_with_state$nitrogen[y] = hog_county_data_with_state$values[y] * state_nitrogen$nitrogen[x]/2000
+    }
+  }
+}
+
+
+i=0
+hog_county_data_with_state$bin = 'none'
+
+hog_county_data_with_state
+
+for(i in 1:nrow(hog_county_data_with_state)){
+  if (hog_county_data_with_state$wastewater[i] > 5){
+    hog_county_data_with_state$bin[i] = 'a'
+  }
+  else if (hog_county_data_with_state$wastewater[i] > 0.5){
+    hog_county_data_with_state$bin[i] = 'b'
+  }
+  else if(hog_county_data_with_state$wastewater[i] > 0.05){
+    hog_county_data_with_state$bin[i] = 'c'
+  }
+  else{hog_county_data_with_state$bin[i] = 'd'
+  }
+  
+}
+
+
+hog_county_data_with_state$bin1 = 'd'
+for(i in 1:nrow(hog_county_data_with_state)){
+  if (hog_county_data_with_state$nitrogen[i] > 4.94){
+    hog_county_data_with_state$bin1[i] = 'a'
+  }
+  else if (hog_county_data_with_state$nitrogen[i] > 1.99){
+    hog_county_data_with_state$bin1[i] = 'b'
+  }
+  else if(hog_county_data_with_state$nitrogen[i] > 0.032){
+    hog_county_data_with_state$bin1[i] = 'c'
+  }
+  else{hog_county_data_with_state$bin1[i] = 'd'
+  }
+  
+}
+
+
+plot_usmap(data = hog_county_data_with_state, values = "bin")+scale_fill_brewer(palette = "Spectral")+ 
+theme(legend.position = "right")
+
+
+plot_usmap(data = hog_county_data_with_state, values = "bin1")+scale_fill_brewer(palette = "RdBu")+ 
+theme(legend.position = "right")
+
+
+
+
+write.csv(hog_county_data_with_state,file = 'export2' )
+```
+
+```{r importing_counties, echo=FALSE}
+finishing_by_state_matrix
+
+
+days_nursery = 49
+cohorts_year_nursery = 365/days_nursery
+cohorts_year_finishing= 3
+
+cohorts_year_wean = 365/20
+cohorts_year_farrow = 52/28
+
+import_pigs <- data.frame('state' = finishing_by_state_matrix$state,'import' = finishing_by_state_matrix$nursery*cohorts_year_nursery+finishing_by_state_matrix$finish_only*cohorts_year_finishing)
+
+export_pigs<- data.frame('state' = finishing_by_state_matrix$state,'export' = finishing_by_state_matrix$farrow_to_wean*cohorts_year_wean+finishing_by_state_matrix$farrow_to_feeder*cohorts_year_farrow+finishing_by_state_matrix$nursery*cohorts_year_nursery)
+
+import_export<- data.frame('state' = export_pigs$state)
+import_export<- merge(merge(import_export,export_pigs,by = 'state'), import_pigs, by= 'state')      
+import_export$demand <- import_export$import-import_export$export
+
+
+import_export$ratio<- import_export$demand/(import_export$import+import_export$export)
+import_states <- filter(import_export,demand> 0)
+export_states <-filter(import_export,demand< 0)
+
+import_export[order(import_export$demand, decreasing = TRUE),]
+
+import_export[order(import_export$demand, decreasing = FALSE),]
+
+plot_usmap(data = import_export, values = "demand")+
+scale_fill_gradient2(
+  name = waiver(),
+  low = 'blue',
+  mid = "white",
+  high = 'red',
+  midpoint = 0,
+  space = "Lab",
+  na.value = "grey50",
+  guide = "colourbar",
+  aesthetics = "fill"
+)
+
+export_states
+
+```
+
+```{r importing_counties, echo=FALSE}
+import_export
+
+df1 <- merge(hog_county_data_inventory_trimmed,import_export,by = 'state')
+
+df1$demand <- df1$ratio*df1$values
+import_export_counties <- df1
+plot_usmap(data = df1, values = "demand")+
+scale_fill_gradient2(
+  name = waiver(),
+  low = 'blue',
+  mid = "white",
+  high = 'red',
+  midpoint = 0,
+  space = "Lab",
+  na.value = "grey50",
+  guide = "colourbar",
+  aesthetics = "fill"
+)
+
+
+```
+
+
+```{r readin}
+state_pigs <- read.delim(file.choose(), sep = ",")
+df<- read.delim(file.choose(), sep = ",")
+```
+
+```{r readin}
+state_pigs <- data.matrix(state_pigs, rownames.force = NA)
+
+
+createChordDiagram <- function(df, self_loop = FALSE, order_by){
+  # Libraries: circlize, stplanr and tidyverse
+  
+  # df is a tibble with three columns: orig, dest, flow
+  # order_by is the order of the nodes: inflow, outflow, all
+  
+  library(circlize)
+  
+  if (self_loop == FALSE){
+    df <- df %>% 
+      filter(!orig == dest)
+  }
+  
+  df.matrix <- stplanr::od_to_odmatrix(df)
+  
+  # Replace NA with zeros
+  df.matrix[is.na(df.matrix)] <- 0
+  df.matrix2 <- df.matrix
+  
+  # Organize order -------------------------------------------------------------
+  nodes = union(rownames(df.matrix), colnames(df.matrix))
+  
+  # Summarise to get total ouflow and inflows, and flow (sum outflow + inflow)
+  # for ordering of nodes in the plot
+
+  outflow <- df %>% group_by(orig) %>% summarise(flow=sum(flow)) %>% rename(ID = orig)
+  inflow <- df %>% group_by(dest) %>% summarise(flow=sum(flow)) %>% rename(ID = dest)
+  full <- rbind(outflow, inflow) %>% group_by(ID) %>% summarise(flow=sum(flow))
+  
+  # Update inflow outflow to include all nodes even if they do not have
+  # inflows or outflows for ordering. If missing, change to 0
+  inflow <- full %>% select(ID) %>% left_join(inflow) %>% 
+    mutate(flow = ifelse(is.na(flow), yes=0, no=flow))
+  
+  outflow <- full %>% select(ID) %>% left_join(outflow) %>% 
+    mutate(flow = ifelse(is.na(flow), yes=0, no=flow))
+  
+  # Order
+  if (order_by == "inflow"){
+    od = order(inflow$flow, decreasing = TRUE)
+    nodes = as.character(inflow$ID[od])
+  }
+  if (order_by == "outflow"){
+    od = order(outflow$flow, decreasing = TRUE)
+    nodes = as.character(outflow$ID[od])
+  }
+  if (order_by == "all"){
+    od = order(full$flow, decreasing = TRUE)
+    nodes = as.character(full$ID[od])
+  }
+  
+  # Colors ---------------------------------------------------------------------
+  
+  col2 <- hcl.colors(palette = "Spectral", 12, rev = T)
+  col1<-hcl.colors(palette = "Dark2", 11, rev = T)
+  col <- c(col1,col2)
+  
+  # You can also manipulate the color scheme by combining color palettes
+  # Pay attention to the number of colors and number of nodes 
+  # (this one is for 49 states)
+  # The col1 + col2 + col3 is the one I used:
+  
+  # col1 <- hcl.colors(palette = "Spectral", n=31, rev = T)
+  # col2 <- colorRampPalette(colors = c(col1[25], "violet"))(5)
+  # col3 <- colorRampPalette(colors = c(col2[5], "dodgerblue3"))(13)
+  # col<- c(col1,col2,col3)
+  
+  # Reverse colors (you can comment this):
+  #col <- rev(col)
+  
+  # Initiate chord diagram
+  circlize::circos.clear()
+  par(bg = "white")
+  circlize::circos.par(start.degree = 90, gap.degree=5)
+  circlize::chordDiagram(df.matrix,
+               annotationTrack = "grid", # labels will be plotted later
+               annotationTrackHeight = 0.02, # height for the annotation 'grid'
+               preAllocateTracks = 1, # pre allocate a track and later the sector labels will be added
+               directional = TRUE, 
+               link.sort = TRUE, 
+               link.decreasing = TRUE,
+               order = nodes, 
+               grid.col = col, 
+               diffHeight = -0.03,
+               direction.type = c("diffHeight"),
+               link.arr.type = "big.arrow",
+               #link.border = "gray20",
+               #link.lwd = 0.01,
+               #row.col = row.col, 
+               transparency = 0.2)
+  
+  # since default text facing in `chordDiagram` is fixed, we need to manually add text in track 1
+  for(si in get.all.sector.index()) {
+    xlim = get.cell.meta.data("xlim", sector.index = si, track.index = 1)
+    ylim = get.cell.meta.data("ylim", sector.index = si, track.index = 1)
+    circos.text(mean(xlim), ylim[1], si, facing = "clockwise", adj = c(0, 0.5),
+                niceFacing = TRUE, cex = 1.1, col = "black", sector.index = si, track.index = 1)
+  }
+}
+createChordDiagram(df,self_loop=FALSE,order_by = 'all')
+
+
+```
+
+
+
+```{r readin}
+library(biscale)
+library(cowplot)
+
+
+
+import_export_counties$export_counties = (import_export_counties$export/(import_export_counties$export+import_export_counties$import))*import_export_counties$values
+
+
+import_export_counties$import_counties = (import_export_counties$import/(import_export_counties$export+import_export_counties$import))*import_export_counties$values
+
+df1<- bi_class(import_export_counties, x = import_counties, y = export_counties, style = "equal", dim = 3)
+
+df1
+map <- plot_usmap(data = df1, values = "bi_class",show.legend = FALSE)+  bi_scale_fill(pal = "GrPink2", dim = 3,) + labs(
+ ) +
+ bi_theme()
+
+legend <- bi_legend(pal = "GrPink2",
+                    dim = 3,
+                    xlab = "Imported ",
+                    ylab = "Exported ",
+                    size = 8)
+
+
+finalPlot <- ggdraw() +
+  draw_plot(map, 0, 0, 0.9, 0.9) +
+  draw_plot(legend, 0.7, 0, 0.3, 0.3)
+
+finalPlot
+#For a four-by-four map, breaks are created at the 25th, 50th (median), and 75th percentiles.
+```
+
+
+
+```{r cdf }
+library(RColorBrewer)
+df1 <- filter(import_export_counties,values > quantile(values,0.9))
+
+df1$demand = df1$demand/1000
+
+#c('IA','MN','NC','IL','IN','NE','MO','OH','OK','SD'))
+
+df1$color = 'All Others'
+
+for (x in 1:nrow(df1) ){
+  
+  if (df1$state[x] == 'IOWA') {df1$color[x] = "Iowa"}
+  if (df1$state[x] == 'MINNESOTA') { df1$color[x] = "Minnesota"}
+  if (df1$state[x] == 'NORTH CAROLINA') { df1$color[x] = "North Carolina"}
+  if (df1$state[x] == 'ILLINOIS') { df1$color[x] = "Illinois"}
+  if (df1$state[x] == 'INDIANA') { df1$color[x] = "Indiana"}
+}
+df1
+
+ggplot()+
+  geom_bar(data=df1,aes(x=reorder(fips, +demand),y=demand,fill = color),stat='identity' )+  scale_fill_brewer(palette = "Set2")+theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          axis.line = element_line(colour = "black"),
+         axis.text = element_text(color = "black",size = 15),
+         axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15))+
+       xlab("Influent COD (mg/L)")+
+      ylab("Demand (thous")
+
+```
+
+
