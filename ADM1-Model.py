@@ -329,7 +329,10 @@ rho = {'p1':kdis*Xc,
 m.Equation(Ssu.dt() == Ssuo+rho.get('p2') + (1-f.at['Sfa','Xli'])*rho.get('p4')-rho.get('p5'))
 m.Equation(Saa.dt() == Saao+ rho.get('p3')-rho.get('p6')) #2
 m.Equation(Sfa.dt() == Sfao+ (1-f.at['Sfa','Xli'])*rho.get('p4')-rho.get('p7')) #3
-m.Equation(Sva.dt() == Svao+ (1-Y.get('aa')) * f.at['Sva','Sfa'] *rho.get('p6') -rho.get('p8')) #4
+m.Equation(Sva.dt() == Svao+ (1-Y.get('aa')) * f.at['Sva','Saa'] *rho.get('p6') -rho.get('p8')) #4
+m.Equation(Sbu.dt() == Sbuo +(1-Y.get('su')) * f.at['Sbu','Ssu'] *rho.get('p5')+_(1-Y.get('aa'))* f.at['Sbu','Saa'] *rho.get('p6') -rho.get('p9'))
+m.Equation(Spro.dt() == Sproo +(1-Y.get('su')) * f.at['Spro','Ssu'] *rho.get('p5')+_(1-Y.get('aa'))* f.at['Spro','Saa'] *rho.get('p6')+(1-Y.get('c4')*0.54)*rho.get('p8') -rho.get('p10'))
+m.Equation(Sac.dt() == Saco +(1-Y.get('su')) * f.at['Sac','Ssu'] *rho.get('p5')+_(1-Y.get('aa'))* f.at['Saco','Saa'] *rho.get('p6')+(1-Y.get('c4')*0.31)*rho.get('p8')+(1-Y.get('c4')*0.8)*rho.get('p9')+(1-Y.get('pro')*0.57*rho.get('p10')) -rho.get('p11'))
 m.Equation(Sh2.dt() == Sh2o+(1-Y.get('su'))*f.at['Sh2','Ssu']*rho.get('p5') + (1-Y.get('aa'))*f.at['Sh2','Saa']*rho.get('p6')+ (1-Y.get('fa'))*0.3*rho.get('p7')+(1-Y.get('c4'))*0.15*rho.get('p8')+(1-Y.get('c4'))*0.2*rho.get('p9')+(1-Y.get('pro'))*0.43*rho.get('p10')-rho.get('p12'))
 m.Equation(Sc4.dt() == Sc4o+(1-Y.get('ac'))*rho.get('p11')+(1-Y.get('h2'))*rho.get('p12'))
 m.Equation(SIC.dt() == SICo+((C.get('SIN')*Y.get('su')*N.get('bac')-C.get('Xsu')*Y.get('su')*rho.get('p5') -(-C.get('Saa')+C.get('Sva'))*(1-Y.get('aa'))*f.at['Sva','Saa']+C.get('Sbu')*(1-Y.get('bu'))*f.at['Sbu','Saa']+C.get('Spro')*(1-Y.get('pro'))*f.at['Spro','Saa']+C.get('Sac')*(1-Y.get('ac'))*f.at['Sac','Saa']+C.get('h2')*(1-Y.get('h2'))*f.at['Sh2','Saa']+N.get('aa')*(-Y.get('aa'))*N.get('bac')*C.get('SIN') +Y.get('aa')*C.get('Saa'))*rho.get('p6') -(-C.get('Spro')+(1-Y.get('pro'))*0.57*C.get('Sac') +(1-Y.get('pro'))*0.43*C.get('h2')-Y.get('pro')*N.get('bac')*C.get('SIN') +Y.get('pro')*C.get('Spro'))*rho.get('p10') -(-C.get('Sac')+(1-Y.get('ac')*C.get('Sac')-Y.get('ac')*N.get('bac') )+Y.get('ac')*C.get('Sac'))-(-C.get('h2')+C.get('c4')*(1-Y.get('h2'))-Y.get('h2')*N.get('bac')*C.get('SIN')+Y.get('h2')*C.get('Sh2')))*rho.get('p10'))
